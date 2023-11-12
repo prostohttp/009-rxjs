@@ -1,13 +1,34 @@
-import { scheduled, from, asyncScheduler } from "rxjs";
-import { map } from "rxjs/operators";
-// import { ajax } from "rxjs/ajax";
+import { ajax } from "rxjs/ajax";
+import { throwError } from "rxjs/internal/observable/throwError";
+import { catchError, tap } from "rxjs/operators";
 
-// const data$ = ajax.getJSON(
-// 	"https://api.github.com/search/repositories?q=prostohttp"
-// );
+const rxJsRequestHandler = (url: string, query: string) => {
+	const data$ = ajax
+		.getJSON(`${url}${query}`)
+		.pipe(
+			tap((data: { [total_count: string]: number | string }) => {
+				if (data.total_count == 0 || Array.isArray(data) && !data.length) {
+					throw new Error("No data"); // Генерирование ошибки с помощью throw new Error()
+				}
+			}),
+			catchError((err): any => {
+				console.log("error", err);
+				return throwError(err); // Перехват ошибки и повторное генерирование
+			})
+		);
 
-// data$.subscribe((value: Partial<{[items:string]: any[]}>) => console.log("data$ value", value.items[0].full_name));
+	data$.subscribe((data) => {
+		console.log("data", data);
+	});
+};
 
-const o = scheduled(from([1, 2, 3]), asyncScheduler).pipe(map((el) => el * 2));
+rxJsRequestHandler(
+	"https://api.github.com/search/repositories?q=",
+	"prostohttp"
+);
 
-o.subscribe((x) => console.log(x));
+rxJsRequestHandler(
+	"https://gitlab.com/api/v4/projects?search=",
+	"vue"
+);
+
